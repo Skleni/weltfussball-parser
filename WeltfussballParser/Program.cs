@@ -11,15 +11,17 @@ namespace WeltfussballParser
 {
     class Program
     {
+        const string eventName = "wm-2018-in-russland";
+        const string qualificationLinkText = "wm-quali";
+
         static async Task Main(string[] args)
         {
-            var eventName = "wm-2018-in-russland";
             var startDate = new DateTime(2018, 6, 14);
 
-            Console.WriteLine("Writing CSV file...");
+            Console.WriteLine("Loading players...");
             Console.WriteLine();
 
-            var players = await LoadPlayersAsync(eventName);
+            var players = await LoadPlayersAsync();
 
             Console.WriteLine();
             Console.WriteLine("Writing CSV file...");
@@ -30,16 +32,16 @@ namespace WeltfussballParser
             Console.WriteLine("Finished");
         }        
 
-        private static async Task<IEnumerable<Player>> LoadPlayersAsync(string eventName)
+        private static async Task<IEnumerable<Player>> LoadPlayersAsync()
         {
             var players = new List<Player>();
 
-            var client = new HttpClient();
+            var client = new HttpClient() { BaseAddress = new Uri("http://www.weltfussball.at") };
 
             int page = 1;
             while (true)
             {
-                var response = await client.GetAsync($"http://www.weltfussball.at/spielerliste/{eventName}/nach-name/{page}");
+                var response = await client.GetAsync($"/spielerliste/{eventName}/nach-name/{page}");
 
                 var document = new HtmlDocument();
                 document.LoadHtml(await response.Content.ReadAsStringAsync());
@@ -60,10 +62,19 @@ namespace WeltfussballParser
                 for (int i = count; i < players.Count; i++)
                 {
                     Console.WriteLine("Loading " + players[i].Name);
-                    response = await client.GetAsync("http://www.weltfussball.de" + players[i].DetailsUrl);
+                    response = await client.GetAsync(players[i].DetailsUrl);
                     document = new HtmlDocument();
                     document.LoadHtml(await response.Content.ReadAsStringAsync());
-                    UpdatePlayer(players[i], document);
+
+                    UpdateStatistics(players[i], document);
+
+                    var url = GetQualificationStatisticsUrl(document);
+                    if (url != null)
+                    {
+                        response = await client.GetAsync(url);
+                        document.LoadHtml(await response.Content.ReadAsStringAsync());
+                        UpdateQualificationStatistics(players[i], document);
+                    }
                 }
 
                 page++;
@@ -95,12 +106,41 @@ namespace WeltfussballParser
             };
         }
 
-        private static void UpdatePlayer(Player player, HtmlDocument document)
+        private static string GetQualificationStatisticsUrl(HtmlDocument document)
+        {
+            var table = GetTableByH2(document, "Länderspiele");
+
+            return table?.Descendants("a").Select(a => a.GetAttributeValue("href", string.Empty)).FirstOrDefault(h => h.Contains("spieler_profil") && h.Contains(qualificationLinkText));
+        }
+
+        private static void UpdateStatistics(Player player, HtmlDocument document)
         {
             var table = GetTableByH2(document, "Vereinsstationen als Spieler");
             player.Team = table.Descendants("b").FirstOrDefault()?.InnerText;
             player.TeamStatistics = GetStatistics(document, "Vereinsspiele");
             player.NationStatistics = GetStatistics(document, "Länderspiele");
+            player.QualificationStatistics = new Statistics();
+        }
+
+
+
+        private static void UpdateQualificationStatistics(Player player, HtmlDocument document)
+        {
+            var table = document.DocumentNode.Descendants("table").FirstOrDefault(t => t.HasClass("standard_tabelle"));
+            var tr = table?.Descendants("tr").ElementAtOrDefault(1);
+
+            if (tr != null)
+            {
+                var tds = tr.Descendants("td");
+                player.QualificationStatistics.Matches = int.Parse(tds.ElementAt(4).InnerText);
+                player.QualificationStatistics.Goals = int.Parse(tds.ElementAt(5).InnerText);
+                player.QualificationStatistics.StartingEleven = int.Parse(tds.ElementAt(6).InnerText);
+                player.QualificationStatistics.In = int.Parse(tds.ElementAt(7).InnerText);
+                player.QualificationStatistics.Out = int.Parse(tds.ElementAt(8).InnerText);
+                player.QualificationStatistics.YellowCards = int.Parse(tds.ElementAt(9).InnerText);
+                player.QualificationStatistics.YellowRedCards = int.Parse(tds.ElementAt(10).InnerText);
+                player.QualificationStatistics.RedCards = int.Parse(tds.ElementAt(11).InnerText);
+            }
         }
 
         private static Statistics GetStatistics(HtmlDocument document, string title)
@@ -149,7 +189,7 @@ namespace WeltfussballParser
         {
             using (var writer = new StreamWriter(File.Open("players.csv", FileMode.Create), Encoding.Default))
             {
-                await writer.WriteLineAsync("Name\tNation\tVerein\tPosition\tAlter\tSpiele\tTore\tStartelf\tEin\tAus\tGelb\tGelb-rot\tRot\tSpiele (V)\tTore (V)\tStartelf (V)\tEinwechslungen (V)\tAuswechslungen (V)\tGelb (V)\tGelb-rot (V)\tRot (V)");
+                await writer.WriteLineAsync("Name\tNation\tVerein\tPosition\tAlter\tSpiele (Quali)\tTore (Quali)\tStartelf (Quali)\tEin (Quali)\tAus (Quali)\tGelb (Quali)\tGelb-rot (Quali)\tRot (Quali)5\tSpiele\tTore\tStartelf\tEin\tAus\tGelb\tGelb-rot\tRot\tSpiele (V)\tTore (V)\tStartelf (V)\tEinwechslungen (V)\tAuswechslungen (V)\tGelb (V)\tGelb-rot (V)\tRot (V)");
                 foreach (var player in players)
                 {
                     writer.WriteLine(
@@ -159,6 +199,14 @@ namespace WeltfussballParser
                         player.Team.Trim(),
                         player.Position.Trim(),
                         (int)((startDate - player.DateOfBirth).TotalDays / 365),
+                        player.QualificationStatistics.Matches,
+                        player.QualificationStatistics.Goals,
+                        player.QualificationStatistics.StartingEleven,
+                        player.QualificationStatistics.In,
+                        player.QualificationStatistics.Out,
+                        player.QualificationStatistics.YellowCards,
+                        player.QualificationStatistics.YellowRedCards,
+                        player.QualificationStatistics.RedCards,
                         player.NationStatistics.Matches,
                         player.NationStatistics.Goals,
                         player.NationStatistics.StartingEleven,

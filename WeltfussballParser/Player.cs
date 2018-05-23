@@ -22,5 +22,6 @@ namespace WeltfussballParser
         public Statistics TeamStatistics { get; set; }
 
         public Statistics NationStatistics { get; set; }
+        public Statistics QualificationStatistics { get; set; }
     }
 }
