@@ -36,7 +36,10 @@ namespace WeltfussballParser
         {
             var players = new List<Player>();
 
-            var client = new HttpClient() { BaseAddress = new Uri("http://www.weltfussball.at") };
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri("http://www.weltfussball.at")
+            };
 
             int page = 1;
             while (true)
@@ -187,7 +190,7 @@ namespace WeltfussballParser
 
         private static async Task WriteCsvFileAsync(IEnumerable<Player> players, DateTime startDate)
         {
-            using (var writer = new StreamWriter(File.Open("players.csv", FileMode.Create), Encoding.Default))
+            using (var writer = new StreamWriter(File.Open("players.csv", FileMode.Create), Encoding.UTF8))
             {
                 await writer.WriteLineAsync("Name\tNation\tVerein\tPosition\tAlter\tSpiele (Quali)\tTore (Quali)\tStartelf (Quali)\tEin (Quali)\tAus (Quali)\tGelb (Quali)\tGelb-rot (Quali)\tRot (Quali)5\tSpiele\tTore\tStartelf\tEin\tAus\tGelb\tGelb-rot\tRot\tSpiele (V)\tTore (V)\tStartelf (V)\tEinwechslungen (V)\tAuswechslungen (V)\tGelb (V)\tGelb-rot (V)\tRot (V)");
                 foreach (var player in players)
