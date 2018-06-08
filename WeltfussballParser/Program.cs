@@ -125,8 +125,6 @@ namespace WeltfussballParser
             player.QualificationStatistics = new Statistics();
         }
 
-
-
         private static void UpdateQualificationStatistics(Player player, HtmlDocument document)
         {
             var table = document.DocumentNode.Descendants("table").FirstOrDefault(t => t.HasClass("standard_tabelle"));
@@ -192,7 +190,7 @@ namespace WeltfussballParser
         {
             using (var writer = new StreamWriter(File.Open("players.csv", FileMode.Create), Encoding.UTF8))
             {
-                await writer.WriteLineAsync("Name\tNation\tVerein\tPosition\tAlter\tSpiele (Quali)\tTore (Quali)\tStartelf (Quali)\tEin (Quali)\tAus (Quali)\tGelb (Quali)\tGelb-rot (Quali)\tRot (Quali)5\tSpiele\tTore\tStartelf\tEin\tAus\tGelb\tGelb-rot\tRot\tSpiele (V)\tTore (V)\tStartelf (V)\tEinwechslungen (V)\tAuswechslungen (V)\tGelb (V)\tGelb-rot (V)\tRot (V)");
+                await writer.WriteLineAsync("Name\tNation\tVerein\tPosition\tAlter\tSpiele (Quali)\tTore (Quali)\tStartelf (Quali)\tEin (Quali)\tAus (Quali)\tGelb (Quali)\tGelb-rot (Quali)\tRot (Quali)\tSpiele\tTore\tStartelf\tEin\tAus\tGelb\tGelb-rot\tRot\tSpiele (V)\tTore (V)\tStartelf (V)\tEinwechslungen (V)\tAuswechslungen (V)\tGelb (V)\tGelb-rot (V)\tRot (V)");
                 foreach (var player in players)
                 {
                     writer.WriteLine(
